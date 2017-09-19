@@ -1,0 +1,9 @@
+{
+    "name": "tutorial-connector",
+    "config": {
+        "connector.class": "io.debezium.connector.mongodb.MongoDbConnector",
+        "tasks.max": "1",
+        "mongodb.hosts": "mongo:27017",
+        "mongodb.name": "dbz"
+    }
+}
