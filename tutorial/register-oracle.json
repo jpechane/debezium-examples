@@ -10,7 +10,7 @@
         "database.password" : "xsa",
         "database.dbname" : "ORCLCDB",
         "database.pdb.name" : "ORCLPDB1",
-        "database.out.server.name" : "XOUT",
+        "database.out.server.name" : "DBZXOUT",
         "database.history.kafka.bootstrap.servers" : "kafka:9092",
         "database.history.kafka.topic": "schema-changes.inventory"
     }
