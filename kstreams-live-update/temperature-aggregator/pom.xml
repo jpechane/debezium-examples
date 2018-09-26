@@ -6,6 +6,7 @@
     <groupId>io.debezium.examples</groupId>
     <artifactId>kstreams-live-update-aggregator</artifactId>
     <version>0.1-SNAPSHOT</version>
+    <packaging>war</packaging>
 
     <properties>
         <mvn.compiler.version>3.5.1</mvn.compiler.version>
@@ -14,7 +15,8 @@
         <version.wildfly.swarm>2018.1.0</version.wildfly.swarm>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
-        <java.version>1.8</java.version>
+	<java.version>1.8</java.version>
+	<failOnMissingWebXml>false</failOnMissingWebXml>
     </properties>
 
     <dependencyManagement>
