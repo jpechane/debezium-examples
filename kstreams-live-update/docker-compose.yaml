@@ -56,10 +56,13 @@ services:
     image: debezium/kstreams-aggregator:${DEBEZIUM_VERSION}
     build:
       context: temperature-aggregator
+    ports:
+     - 8079:8079
     links:
      - kafka
     environment:
-     - JAVA_MAIN_CLASS=io.debezium.examples.kstreams.liveupdate.aggregator.Main
+     - JAVA_APP_JAR=demo-swarm.jar
+     - JAVA_OPTIONS=-Dswarm.http.port=8079
     depends_on:
      - connect
     command: >
@@ -70,5 +73,5 @@ services:
           sleep 1;
         done;
         echo 'Source connector deployed!';
-        /deployments/run-java.sh dbserver1.inventory.customers dbserver1.inventory.addresses kafka:9092
+        java -jar /deployments/demo-swarm.jar -Djava.net.preferIPv4Stack=true -Dswarm.http.port=8079
       "
