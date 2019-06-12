@@ -9,15 +9,15 @@ We are using Docker Compose to deploy the following components:
 * Kafka
   * ZooKeeper
   * Kafka Broker
-  * Kafka Connect with the [Debezium CDC](http://debezium.io/) and [JDBC sink](https://github.com/confluentinc/kafka-connect-jdbc) connectors as well as the Postgres JDBC driver
-* PostgreSQL
+  * Kafka Connect with the [Debezium CDC](http://debezium.io/) and [Elasticsearch sink](https://github.com/confluentinc/kafka-connect-elasticsearch) connectors as well as the Elasticsearch client
+* Elasticsearch
 
 ## Preparations
 
 ```shell
 # Start the application
-export DEBEZIUM_VERSION=0.8
-docker-compose up --build -d
+export DEBEZIUM_VERSION=0.10
+docker-compose -f docker-compose-es.yaml up --build -d
 
 # Initialize MongoDB replica set and insert some test data
 docker-compose exec mongodb bash -c '/usr/local/bin/init-inventory.sh'
@@ -28,8 +28,8 @@ export CURRENT_HOST=$(docker-machine ip $(docker-machine active));
 # or any other host
 # export CURRENT_HOST='localhost' //or your host name 
 
-# Start JDBC sink connector
-curl -i -X POST -H "Accept:application/json" -H  "Content-Type:application/json" http://$CURRENT_HOST:8083/connectors/ -d @jdbc-sink.json
+# Start Elasticsearch sink connector
+curl -i -X POST -H "Accept:application/json" -H  "Content-Type:application/json" http://$CURRENT_HOST:8083/connectors/ -d @es-sink.json
 
 # Start Debezium MongoDB CDC connector
 curl -i -X POST -H "Accept:application/json" -H  "Content-Type:application/json" http://$CURRENT_HOST:8083/connectors/ -d @mongodb-source.json
@@ -40,7 +40,7 @@ curl -i -X POST -H "Accept:application/json" -H  "Content-Type:application/json"
 Check contents of the MongoDB database:
 
 ```shell
-docker-compose exec mongodb bash -c 'mongo -u $MONGODB_USER -p $MONGODB_PASSWORD --authenticationDatabase admin inventory --eval "db.customers.find()"'
+docker-compose -f docker-compose-es.yaml exec mongodb bash -c 'mongo -u $MONGODB_USER -p $MONGODB_PASSWORD --authenticationDatabase admin inventory --eval "db.customers.find()"'
 
 { "_id" : NumberLong(1001), "first_name" : "Sally", "last_name" : "Thomas", "email" : "sally.thomas@acme.com" }
 { "_id" : NumberLong(1002), "first_name" : "George", "last_name" : "Bailey", "email" : "gbailey@foobar.com" }
@@ -48,17 +48,74 @@ docker-compose exec mongodb bash -c 'mongo -u $MONGODB_USER -p $MONGODB_PASSWORD
 { "_id" : NumberLong(1004), "first_name" : "Anne", "last_name" : "Kretchmar", "email" : "annek@noanswer.org" }
 ```
 
-Verify that the PostgreSQL database has the same content:
+Verify that the Elasticsearch database has the same content:
 
 ```shell
-docker-compose exec postgres bash -c 'psql -U $POSTGRES_USER $POSTGRES_DB -c "select * from customers"'
- last_name |  id  | first_name |         email
------------+------+------------+-----------------------
- Thomas    | 1001 | Sally      | sally.thomas@acme.com
- Bailey    | 1002 | George     | gbailey@foobar.com
- Walker    | 1003 | Edward     | ed@walker.com
- Kretchmar | 1004 | Anne       | annek@noanswer.org
-(4 rows)
+curl "http://$CURRENT_HOST:9200/customers/_search?pretty"
+
+{
+  "took" : 0,
+  "timed_out" : false,
+  "_shards" : {
+    "total" : 5,
+    "successful" : 5,
+    "failed" : 0
+  },
+  "hits" : {
+    "total" : 4,
+    "max_score" : 1.0,
+    "hits" : [
+      {
+        "_index" : "customers",
+        "_type" : "customer",
+        "_id" : "1004",
+        "_score" : 1.0,
+        "_source" : {
+          "first_name" : "Anne",
+          "last_name" : "Kretchmar",
+          "email" : "annek@noanswer.org",
+          "id" : 1004
+        }
+      },
+      {
+        "_index" : "customers",
+        "_type" : "customer",
+        "_id" : "1001",
+        "_score" : 1.0,
+        "_source" : {
+          "first_name" : "Sally",
+          "last_name" : "Thomas",
+          "email" : "sally.thomas@acme.com",
+          "id" : 1001
+        }
+      },
+      {
+        "_index" : "customers",
+        "_type" : "customer",
+        "_id" : "1003",
+        "_score" : 1.0,
+        "_source" : {
+          "first_name" : "Edward",
+          "last_name" : "Walker",
+          "email" : "ed@walker.com",
+          "id" : 1003
+        }
+      },
+      {
+        "_index" : "customers",
+        "_type" : "customer",
+        "_id" : "1002",
+        "_score" : 1.0,
+        "_source" : {
+          "first_name" : "George",
+          "last_name" : "Bailey",
+          "email" : "gbailey@foobar.com",
+          "id" : 1002
+        }
+      }
+    ]
+  }
+}
 ```
 
 ## Adding a new record
@@ -66,7 +123,7 @@ docker-compose exec postgres bash -c 'psql -U $POSTGRES_USER $POSTGRES_DB -c "se
 Insert a new record into MongoDB:
 
 ```shell
-docker-compose exec mongodb bash -c 'mongo -u $MONGODB_USER -p $MONGODB_PASSWORD --authenticationDatabase admin inventory'
+docker-compose -f docker-compose-es.yaml exec mongodb bash -c 'mongo -u $MONGODB_USER -p $MONGODB_PASSWORD --authenticationDatabase admin inventory'
 
 MongoDB server version: 3.4.10
 rs0:PRIMARY>
@@ -80,54 +137,91 @@ db.customers.insert([
 ...
 ```
 
-Verify that PostgreSQL contains the new record:
+Verify that Elasticsearch contains the new record:
 
 ```shell
-docker-compose exec postgres bash -c 'psql -U $POSTGRES_USER $POSTGRES_DB -c "select * from customers"'
+curl "http://$CURRENT_HOST:9200/customers/_search?pretty"
 
- last_name |  id  | first_name |         email
------------+------+------------+-----------------------
-...
-Hopper        | 1005 | Bob       | bob@example.com
-(5 rows)
-```
+{
+  "took" : 0,
+  "timed_out" : false,
+  "_shards" : {
+    "total" : 5,
+    "successful" : 5,
+    "failed" : 0
+  },
+  "hits" : {
+    "total" : 5,
+    "max_score" : 1.0,
+    "hits" : [
+      {
+        "_index" : "customers",
+        "_type" : "customer",
+        "_id" : "1004",
+        "_score" : 1.0,
+        "_source" : {
+          "first_name" : "Anne",
+          "last_name" : "Kretchmar",
+          "email" : "annek@noanswer.org",
+          "id" : 1004
+        }
+      },
+      {
+        "_index" : "customers",
+        "_type" : "customer",
+        "_id" : "1001",
+        "_score" : 1.0,
+        "_source" : {
+          "first_name" : "Sally",
+          "last_name" : "Thomas",
+          "email" : "sally.thomas@acme.com",
+          "id" : 1001
+        }
+      },
+      {
+        "_index" : "customers",
+        "_type" : "customer",
+        "_id" : "1005",
+        "_score" : 1.0,
+        "_source" : {
+          "first_name" : "Bob",
+          "last_name" : "Hopper",
+          "email" : "bob@example.com",
+          "id" : 1005
+        }
+      },
+      {
+        "_index" : "customers",
+        "_type" : "customer",
+        "_id" : "1003",
+        "_score" : 1.0,
+        "_source" : {
+          "first_name" : "Edward",
+          "last_name" : "Walker",
+          "email" : "ed@walker.com",
+          "id" : 1003
+        }
+      },
+      {
+        "_index" : "customers",
+        "_type" : "customer",
+        "_id" : "1002",
+        "_score" : 1.0,
+        "_source" : {
+          "first_name" : "George",
+          "last_name" : "Bailey",
+          "email" : "gbailey@foobar.com",
+          "id" : 1002
+        }
+      }
+    ]
+  }
+}
 
-## Updating a record
-
-Update a record in MongoDB:
-
-```shell
-docker-compose exec mongodb bash -c 'mongo -u $MONGODB_USER -p $MONGODB_PASSWORD --authenticationDatabase admin inventory'
-
-MongoDB server version: 3.4.10
-rs0:PRIMARY>
-
-db.customers.update(
-   {
-    _id : NumberLong("1005")
-   },
-   {
-     $set : {
-       first_name: "Billy-Bob"
-     }
-   }
-);
-```
-
-Verify that record in PostgreSQL is updated:
-
-```shell
-docker-compose exec postgres bash -c 'psql -U $POSTGRES_USER $POSTGRES_DB -c "select * from customers"'
-
- last_name |  id  | first_name |         email
------------+------+------------+-----------------------
-...
- Hopper    | 1005 | Billy-Bob  | bob@example.com
-(5 rows)
 ```
 
 End application:
 
 ```shell
-docker-compose down
+docker-compose -f docker-compose-es.yaml down
 ```
