@@ -73,7 +73,7 @@ hints_directory:
   - /var/lib/cassandra/hints
 
 #cdc_raw_directory: /var/lib/cassandra/cdc_raw_directory
-
+#
 #cdc_enabled: true
 
 # How often hints should be flushed from the internal buffers to disk.
