@@ -1,0 +1,32 @@
+version: '3.9'
+services:
+  nats:
+    image: docker.io/nats:2.9.11
+    ports:
+    - "4222:4222"
+    command:
+    - "--debug"
+    - "--http_port=8222"
+    - "--js"
+
+  cassandra:
+    image: cassandra:latest
+    ports:
+      - "9042:9042"
+    volumes:
+      - ./cassandra.yaml:/etc/cassandra/cassandra.yaml
+      - ./cassandra-data:/var/lib/cassandra
+
+  debezium:
+    image: docker.io/debezium/server:2.2-SNAPSHOT
+    platform: linux/amd64
+    volumes:
+      - ./application.properties:/debezium/conf/application.properties
+      - ./cassandra.yaml:/etc/cassandra/cassandra.yaml
+      - ./cassandra-data:/var/lib/cassandra
+      - ./driver.conf:/debezium/conf/driver.conf
+    depends_on:
+      - cassandra
+      - nats
+    environment:
+      - DEBEZIUM_OPTS=--add-exports java.base/jdk.internal.misc=ALL-UNNAMED --add-exports java.base/jdk.internal.ref=ALL-UNNAMED --add-exports java.base/sun.nio.ch=ALL-UNNAMED --add-exports java.management.rmi/com.sun.jmx.remote.internal.rmi=ALL-UNNAMED --add-exports java.rmi/sun.rmi.registry=ALL-UNNAMED --add-exports java.rmi/sun.rmi.server=ALL-UNNAMED --add-exports java.sql/java.sql=ALL-UNNAMED --add-opens java.base/java.lang.module=ALL-UNNAMED --add-opens java.base/jdk.internal.loader=ALL-UNNAMED --add-opens java.base/jdk.internal.ref=ALL-UNNAMED --add-opens java.base/jdk.internal.reflect=ALL-UNNAMED --add-opens java.base/jdk.internal.math=ALL-UNNAMED --add-opens java.base/jdk.internal.module=ALL-UNNAMED --add-opens java.base/jdk.internal.util.jar=ALL-UNNAMED --add-opens=java.base/sun.nio.ch=ALL-UNNAMED --add-opens jdk.management/com.sun.management.internal=ALL-UNNAMED --add-opens=java.base/java.io=ALL-UNNAMED
