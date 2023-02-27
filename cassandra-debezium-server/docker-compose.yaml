@@ -10,11 +10,13 @@ services:
     - "--js"
 
   cassandra:
-    image: cassandra:latest
+    image: debezium/example-cassandra:${DEBEZIUM_VERSION}
+    build:
+      context: ./debezium-cassandra-init
     ports:
       - "9042:9042"
     volumes:
-      - ./cassandra.yaml:/etc/cassandra/cassandra.yaml
+      - ./cassandra.yaml:/opt/cassandra/conf/cassandra.yaml
       - ./cassandra-data:/var/lib/cassandra
 
   debezium:
