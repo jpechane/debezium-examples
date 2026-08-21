@@ -48,9 +48,9 @@
   <build>
     <plugins>
       <plugin>
-        <groupId>${quarkus.platform.group-id}</groupId>
+        <groupId>io.quarkus.platform</groupId>
         <artifactId>quarkus-maven-plugin</artifactId>
-        <version>${quarkus.platform.version}</version>
+        <version>${version.quarkus}</version>
         <extensions>true</extensions>
         <executions>
           <execution>
@@ -64,7 +64,7 @@
       </plugin>
       <plugin>
         <artifactId>maven-surefire-plugin</artifactId>
-        <version>${version.surefire}</version>
+        <version>${version.surefire-plugin}</version>
         <configuration>
           <systemProperties>
             <java.util.logging.manager>org.jboss.logmanager.LogManager</java.util.logging.manager>
@@ -84,7 +84,7 @@
       <build>
         <plugins>
           <plugin>
-            <groupId>io.quarkus</groupId>
+            <groupId>io.quarkus.platform</groupId>
             <artifactId>quarkus-maven-plugin</artifactId>
             <version>${version.quarkus}</version>
             <executions>
@@ -101,7 +101,7 @@
           </plugin>
           <plugin>
             <artifactId>maven-failsafe-plugin</artifactId>
-            <version>${version.surefire}</version>
+            <version>${version.surefire-plugin}</version>
             <executions>
               <execution>
                 <goals>
